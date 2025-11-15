@@ -23,4 +23,5 @@ RUN python manage.py collectstatic --noinput
 EXPOSE 8000
 
 # Run the app with gunicorn
-CMD ["gunicorn", "inventory_system.wsgi:application", "--bind", "0.0.0.0:8000"]
+python manage.py migrate && gunicorn inventory_system.wsgi:application --bind 0.0.0.0:8000
+
