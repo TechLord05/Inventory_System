@@ -1,4 +1,4 @@
-from rest_framework import viewsets, serializers, filters
+from rest_framework import viewsets, serializers, filters, status
 from rest_framework.permissions import IsAuthenticated
 from .models import Product, Supplier, Order, StockMovement
 from .serializers import ProductSerializer, SupplierSerializer, OrderSerializer, InventoryDashboardSerializer, StockMovementSerializer
@@ -32,15 +32,25 @@ class SupplierViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
 
+
+from rest_framework import viewsets, status, serializers
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from .models import Order, Product, StockMovement
+from .serializers import OrderSerializer, ProductSerializer
+
 class OrderViewSet(viewsets.ModelViewSet):
     queryset = Order.objects.all()
     serializer_class = OrderSerializer
     permission_classes = [IsAuthenticated]
 
-    def perform_create(self, serializer):
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
         order = serializer.save()
         product = order.product
 
+        # Update product quantity based on order type
         if order.type == 'incoming':
             product.quantity += order.quantity
         elif order.type == 'outgoing':
@@ -50,13 +60,30 @@ class OrderViewSet(viewsets.ModelViewSet):
 
         product.save()
 
-        # Log the stock movement
+        # Logging stock movement
         StockMovement.objects.create(
             product=product,
             order=order,
             quantity=order.quantity,
             type=order.type
         )
+
+        # Check for low stock
+        low_stock = False
+        message = None
+        if product.quantity < getattr(product, 'min_stock', 0):
+            low_stock = True
+            message = f"Warning: {product.name} is below minimum stock ({product.min_stock})"
+
+        # Return structured response
+        return Response({
+            "order": OrderSerializer(order).data,
+            "product": ProductSerializer(product).data,
+            "low_stock": low_stock,
+            "message": message
+        }, status=status.HTTP_201_CREATED)
+
+
 
 class StockMovementViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = StockMovement.objects.all().order_by('-created_at')

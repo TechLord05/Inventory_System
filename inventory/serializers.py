@@ -13,16 +13,23 @@ class ProductSerializer(serializers.ModelSerializer):
         write_only=True,
         required=False
     )
+    low_stock = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
         fields = [
             "id", "name", "description", "sku",
-            "quantity", "price", "category",
-            "suppliers",       # read-only nested
-            "supplier_ids",    # write-only list of UUIDs
+            "quantity", "min_stock",
+            "price", "category",
+            "suppliers",
+            "supplier_ids",
+            "low_stock",
             "created_at", "updated_at"
         ]
+
+    def get_low_stock(self, obj):
+        return obj.is_low_stock()
+
 
     def create(self, validated_data):
         supplier_ids = validated_data.pop("supplier_ids", [])
