@@ -65,3 +65,9 @@ class StockMovementSerializer(serializers.ModelSerializer):
     class Meta:
         model = StockMovement
         fields = ['id', 'product', 'product_name', 'order_id', 'quantity', 'type', 'created_at']
+
+
+class InventoryDashboardSerializer(serializers.Serializer):
+    total_products = serializers.IntegerField()
+    total_stock = serializers.IntegerField()
+    low_stock_products = serializers.ListField(child=serializers.DictField())
